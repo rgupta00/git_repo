@@ -1,0 +1,104 @@
+services:
+  eurekaserver:
+    image: "rgupta00/eureka:v3"
+    container_name: eureka-ms
+    ports:
+      - "8070:8070"
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    healthcheck:
+      test: "curl --fail --silent localhost:8070/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - busycoder
+    environment:
+      SPRING_APPLICATION_NAME: "eureka"
+      SPRING_PROFILES_ACTIVE: default
+
+  wservice:
+    image: "rgupta00/wservice:v3"
+    container_name: wservice-ms
+    ports:
+      - "8082:8082"
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    healthcheck:
+      test: "curl --fail --silent localhost:8082/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      eurekaserver:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_NAME: "wservice"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eurekaserver:8070/eureka/"
+      SPRING_PROFILES_ACTIVE: default
+    networks:
+      - busycoder
+
+  wclient:
+    image: "rgupta00/wclient:v3"
+    container_name: wclient-ms
+    ports:
+      - "8085:8085"
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    healthcheck:
+      test: "curl --fail --silent localhost:8085/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    depends_on:
+      eurekaserver:
+        condition: service_healthy
+      wservice:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_NAME: "wclient"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eurekaserver:8070/eureka/"
+      SPRING_PROFILES_ACTIVE: default
+    networks:
+      - busycoder
+
+  gatewayserver:
+    image: "rgupta00/gateway:v3"
+    container_name: gateway-ms
+    ports:
+      - "8072:8072"
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    healthcheck:
+      test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+#      eurekaserver:
+#        condition: service_healthy
+      wservice:
+        condition: service_healthy
+      wclient:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_NAME: "gateway"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eurekaserver:8070/eureka/"
+      SPRING_PROFILES_ACTIVE: default
+networks:
+  busycoder:
+    driver: "bridge"
